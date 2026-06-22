@@ -1,0 +1,15 @@
+Bow kills = 2
+Kills = 3032
+Final deaths = 143
+Games played = 593
+Arrows shot = 56
+Highest winstreak reached = 67
+Beds destroyed = 618
+Losses = 133
+Arrows hit = 15
+Melee kills = 1976
+Final kills = 1582
+Deaths = 1617
+Void kills = 943
+December Wins = NOT FOUND
+Wins = 379
