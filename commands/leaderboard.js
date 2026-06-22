@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require("discord.js");
 const https = require("https");
 
-function fetchLeaderboard(mode, limit) {
+function fetchLB(mode, limit) {
   return new Promise(function (resolve, reject) {
     var url = "https://stats.pika-network.net/api/leaderboards?type=bedwars&mode=" + mode + "&interval=weekly&stat=HIGHEST_WIN_STREAK&limit=" + limit;
     https.get(url, { timeout: 10000 }, function (res) {
@@ -18,7 +18,7 @@ function fetchLeaderboard(mode, limit) {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("leaderboard")
-    .setDescription("Weekly streak leaderboard tracker")
+    .setDescription("Weekly streak leaderboard")
     .addSubcommand(function(sub) {
       return sub.setName("track")
         .setDescription("View weekly streak leaderboard")
@@ -56,7 +56,7 @@ module.exports = {
     await interaction.deferReply();
 
     try {
-      var data = await fetchLeaderboard(mode, top);
+      var data = await fetchLB(mode, top);
       if (!data.entries || data.entries.length === 0) {
         return interaction.editReply("\u2666 No data for " + modeLabel);
       }

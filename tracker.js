@@ -1,126 +1,3 @@
-function fetchGlobalLeaderboard(mode, limit) {
-  return new Promise(function (resolve, reject) {
-    var url = "https://stats.pika-network.net/api/leaderboards?type=bedwars&mode=" + mode + "&interval=weekly&stat=HIGHEST_WIN_STREAK&limit=" + limit;
-    https.get(url, { timeout: 10000 }, function (res) {
-      var data = "";
-      res.on("data", function (chunk) { data = data + chunk; });
-      res.on("end", function () {
-        try { resolve(JSON.parse(data)); }
-        catch (e) { reject(new Error("Invalid JSON")); }
-      });
-    }).on("error", reject).on("timeout", function () { this.destroy(); reject(new Error("Timeout")); });
-  });
-}
-
-var lbKnown = {};
-
-async function checkLeaderboards(client) {
-  try {
-    var modes = ["solo", "doubles", "quads", "ALL_MODES"];
-    var channelId = process.env.ALERT_CHANNEL_ID;
-    var channel = client.channels.cache.get(channelId);
-    if (!channel) return;
-    for (var m = 0; m < modes.length; m++) {
-      var mode = modes[m];
-      try {
-        var data = await fetchGlobalLeaderboard(mode, 50);
-        if (!data.entries) continue;
-        var modeLabel = mode === "ALL_MODES" ? "All Modes" : mode.charAt(0).toUpperCase() + mode.slice(1);
-        for (var i = 0; i < data.entries.length; i++) {
-          var e = data.entries[i];
-          var streak = Number(e.value) || 0;
-          if (streak < 20) continue;
-          var key = mode + "_" + e.id;
-          if (lbKnown[key]) continue;
-          lbKnown[key] = true;
-          var clanTag = e.clan ? " [" + e.clan + "]" : "";
-          var pingRole = process.env.PING_ROLE || "";
-          await channel.send({
-            content: pingRole,
-            embeds: [{
-              color: 0xFF0000,
-              title: "\u200b",
-              description: "\u2666\u2666 \u2605 WEEKLY STREAK ALERT \u2605 \u2666\u2666\n\n**" + e.id + clanTag + "** hit **" + streak + "** weekly streak in **" + modeLabel + "**!\n\n\u2726 Ranked #" + e.place + " \u2726",
-              fields: [
-                { name: "\u25c6 Mode", value: modeLabel, inline: true },
-                { name: "\u25c6 Streak", value: String(streak), inline: true },
-                { name: "\u25c6 Rank", value: "#" + e.place, inline: true },
-              ],
-              footer: { text: "\u2666 addict sniper \u2666 lb alert" },
-              timestamp: new Date().toISOString(),
-            }],
-          });
-          console.log("[LB ALERT] " + e.id + " - " + streak + " in " + modeLabel + " (#" + e.place + ")");
-        }
-      } catch(err) {}
-    }
-  } catch(err) {
-    console.error("[LB] Error:", err.message);
-  }
-}
-
-async function seedLeaderboards() {
-  console.log("[LB] Seeding known leaderboard players...");
-  var modes = ["solo", "doubles", "quads", "ALL_MODES"];
-  for (var m = 0; m < modes.length; m++) {
-    try {
-      var data = await fetchGlobalLeaderboard(modes[m], 50);
-      if (!data.entries) continue;
-      for (var i = 0; i < data.entries.length; i++) {
-        var e = data.entries[i];
-        if (Number(e.value) >= 20) {
-          lbKnown[modes[m] + "_" + e.id] = true;
-        }
-      }
-    } catch(err) {}
-  }
-  console.log("[LB] Seeded " + Object.keys(lbKnown).length + " known players");
-}
-ync function checkLeaderboards(client) {
-  try {
-    var modes = ["solo", "doubles", "quads", "ALL_MODES"];
-    var channelId = process.env.ALERT_CHANNEL_ID;
-    var channel = client.channels.cache.get(channelId);
-    if (!channel) return;
-    for (var m = 0; m < modes.length; m++) {
-      var mode = modes[m];
-      try {
-        var data = await fetchGlobalLeaderboard(mode, 25);
-        if (!data.entries) continue;
-        var modeLabel = mode === "ALL_MODES" ? "All Modes" : mode.charAt(0).toUpperCase() + mode.slice(1);
-        for (var i = 0; i < data.entries.length; i++) {
-          var e = data.entries[i];
-          var streak = Number(e.value) || 0;
-          if (streak < 20) continue;
-          var key = mode + "_" + e.id;
-          if (lbKnown[key]) continue;
-          lbKnown[key] = true;
-          var clanTag = e.clan ? " [" + e.clan + "]" : "";
-          var pingRole = process.env.PING_ROLE || "";
-          await channel.send({
-            content: pingRole,
-            embeds: [{
-              color: 0xFF0000,
-              title: "\u200b",
-              description: "\u2666\u2666 \u2605 WEEKLY STREAK ALERT \u2605 \u2666\u2666\n\n**" + e.id + clanTag + "** hit **" + streak + "** weekly streak in **" + modeLabel + "**!\n\n\u2726 Ranked #" + e.place + " \u2726",
-              fields: [
-                { name: "\u25c6 Mode", value: modeLabel, inline: true },
-                { name: "\u25c6 Streak", value: String(streak), inline: true },
-                { name: "\u25c6 Rank", value: "#" + e.place, inline: true },
-              ],
-              footer: { text: "\u2666 addict sniper \u2666 lb alert" },
-              timestamp: new Date().toISOString(),
-            }],
-          });
-          console.log("[LB ALERT] " + e.id + " - " + streak + " in " + modeLabel + " (#" + e.place + ")");
-        }
-      } catch(err) {}
-    }
-  } catch(err) {
-    console.error("[LB] Error:", err.message);
-  }
-}
-
 const https = require("https");
 const watchlist = new Map();
 
@@ -308,31 +185,17 @@ async function checkPlayer(client, username) {
     var displayName = tracked ? tracked.name : username;
     if (!tracked) {
       watchlist.set(key, { name: username, apiName: apiName, lastBest: stats.bestStreak, online: isOnline, alerted: false });
-      if (isOnline && channel) {
-        await channel.send({ embeds: [buildOnlineEmbed(displayName, stats)] });
-        console.log("[ONLINE] " + apiName + " is online!");
-      }
+      if (isOnline && channel) { await channel.send({ embeds: [buildOnlineEmbed(displayName, stats)] }); console.log("[ONLINE] " + apiName + " is online!"); }
       return;
     }
     tracked.apiName = apiName;
-    if (isOnline && !tracked.online) {
-      if (channel) { await channel.send({ embeds: [buildOnlineEmbed(displayName, stats)] }); }
-      console.log("[ONLINE] " + apiName + " just came online!");
-    }
-    if (!isOnline && tracked.online) {
-      if (channel) { await channel.send({ embeds: [buildOfflineEmbed(displayName)] }); }
-      console.log("[OFFLINE] " + apiName + " went offline");
-    }
-    if (stats.bestStreak > tracked.lastBest && tracked.lastBest > 0) {
-      if (channel) { await channel.send({ embeds: [buildStreakEmbed(displayName, stats)] }); }
-      console.log("[ALERT] " + apiName + " new best streak: " + stats.bestStreak);
-    }
+    if (isOnline && !tracked.online) { if (channel) { await channel.send({ embeds: [buildOnlineEmbed(displayName, stats)] }); } console.log("[ONLINE] " + apiName + " just came online!"); }
+    if (!isOnline && tracked.online) { if (channel) { await channel.send({ embeds: [buildOfflineEmbed(displayName)] }); } console.log("[OFFLINE] " + apiName + " went offline"); }
+    if (stats.bestStreak > tracked.lastBest && tracked.lastBest > 0) { if (channel) { await channel.send({ embeds: [buildStreakEmbed(displayName, stats)] }); } console.log("[ALERT] " + apiName + " new best streak: " + stats.bestStreak); }
     tracked.lastBest = stats.bestStreak;
     tracked.online = isOnline;
   } catch (err) { console.error("[Tracker] Error " + username + ":", err.message); }
 }
-
-
 
 function fetchGlobalLeaderboard(mode, limit) {
   return new Promise(function (resolve, reject) {
@@ -350,20 +213,34 @@ function fetchGlobalLeaderboard(mode, limit) {
 
 var lbKnown = {};
 
+async function seedLeaderboards() {
+  console.log("[LB] Seeding known players...");
+  var modes = ["solo", "doubles", "quads", "ALL_MODES"];
+  for (var m = 0; m < modes.length; m++) {
+    try {
+      var data = await fetchGlobalLeaderboard(modes[m], 50);
+      if (!data.entries) continue;
+      for (var i = 0; i < data.entries.length; i++) {
+        var e = data.entries[i];
+        if (Number(e.value) >= 20) { lbKnown[modes[m] + "_" + e.id] = true; }
+      }
+    } catch(err) {}
+  }
+  console.log("[LB] Seeded " + Object.keys(lbKnown).length + " players");
+}
+
 async function checkLeaderboards(client) {
   try {
     var modes = ["solo", "doubles", "quads", "ALL_MODES"];
     var channelId = process.env.ALERT_CHANNEL_ID;
     var channel = client.channels.cache.get(channelId);
     if (!channel) return;
-
     for (var m = 0; m < modes.length; m++) {
       var mode = modes[m];
       try {
-        var data = await fetchGlobalLeaderboard(mode, 25);
+        var data = await fetchGlobalLeaderboard(mode, 50);
         if (!data.entries) continue;
         var modeLabel = mode === "ALL_MODES" ? "All Modes" : mode.charAt(0).toUpperCase() + mode.slice(1);
-
         for (var i = 0; i < data.entries.length; i++) {
           var e = data.entries[i];
           var streak = Number(e.value) || 0;
@@ -371,16 +248,14 @@ async function checkLeaderboards(client) {
           var key = mode + "_" + e.id;
           if (lbKnown[key]) continue;
           lbKnown[key] = true;
-
           var clanTag = e.clan ? " [" + e.clan + "]" : "";
           var pingRole = process.env.PING_ROLE || "";
-
           await channel.send({
             content: pingRole,
             embeds: [{
               color: 0xFF0000,
               title: "\u200b",
-              description: "\u2666\u2666 \u2605 WEEKLY STREAK ALERT \u2605 \u2666\u2666\n\n**" + e.id + clanTag + "** hit **" + streak + "** weekly win streak in **" + modeLabel + "**!\n\n\u2726 Ranked #" + e.place + " on the leaderboard \u2726",
+              description: "\u2666\u2666 \u2605 WEEKLY STREAK ALERT \u2605 \u2666\u2666\n\n**" + e.id + clanTag + "** hit **" + streak + "** weekly streak in **" + modeLabel + "**!\n\n\u2726 Ranked #" + e.place + " \u2726",
               fields: [
                 { name: "\u25c6 Mode", value: modeLabel, inline: true },
                 { name: "\u25c6 Streak", value: String(streak), inline: true },
@@ -390,14 +265,13 @@ async function checkLeaderboards(client) {
               timestamp: new Date().toISOString(),
             }],
           });
-          console.log("[LB ALERT] " + e.id + " - " + streak + " streak in " + modeLabel + " (#" + e.place + ")");
+          console.log("[LB ALERT] " + e.id + " - " + streak + " in " + modeLabel + " (#" + e.place + ")");
         }
       } catch(err) {}
     }
-  } catch(err) {
-    console.error("[LB] Error:", err.message);
-  }
+  } catch(err) { console.error("[LB] Error:", err.message); }
 }
+
 function startTracker(client) {
   var interval = Number(process.env.POLL_INTERVAL) || 30000;
   console.log("[Tracker] Starting with " + interval + "ms interval");
@@ -412,11 +286,10 @@ function startTracker(client) {
   }
   tick();
   setInterval(tick, interval);
-  await seedLeaderboards();
-  checkLeaderboards(client);
-  setInterval(function() { checkLeaderboards(client); }, 60000);
-  checkLeaderboards(client);
-  setInterval(function() { checkLeaderboards(client); }, 60000);
+  seedLeaderboards().then(function() {
+    checkLeaderboards(client);
+    setInterval(function() { checkLeaderboards(client); }, 60000);
+  });
 }
 
 module.exports = { watchlist: watchlist, fetchPikaStats: fetchPikaStats, fetchWithFallback: fetchWithFallback, extractBedwarsStats: extractBedwarsStats, startTracker: startTracker };
