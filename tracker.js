@@ -35,7 +35,7 @@ function isPlayerOnline(profileData) {
   var now = Date.now();
   var diff = now - lastSeen;
   if (diff < 0) diff = diff * -1;
-  if (diff < 120000) return true;
+  if (diff < 900000) return true;
   return false;
 }
 
